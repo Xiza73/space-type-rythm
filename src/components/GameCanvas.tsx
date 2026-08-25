@@ -270,7 +270,7 @@ export function GameCanvas({
       {over !== null && (
         <GameOver
           state={over}
-          mode={modeKey(sequenceType, language, rhythmMode, speed)}
+          mode={modeKey({ sequenceType, language, rhythmMode, speed, songId: song?.id ?? null })}
           onRetry={() => {
             // Se remonta todo: con una canción real hay que rearrancar el audio,
             // y un solo camino de reinicio es uno solo que puede fallar.

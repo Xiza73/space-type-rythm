@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { BPM_LIMITS, measureDurationMs } from '../game/constants'
+import type { Language, SequenceType } from '../game/sequence'
 import { Modal } from './Modal'
 import { SongPicker } from './SongPicker'
 import {
@@ -10,14 +11,22 @@ import {
   setSongBpm,
   type SongStatus,
 } from '../library/client'
+import { bestOf, loadScores, modeKey, type ScoreEntry } from '../scores/client'
 
 type Props = {
   /** Canción elegida, o `null` para el chiptune simulado. */
   selected: SongStatus | null
   onSelect: (song: SongStatus | null) => void
+  /**
+   * Con qué se va a tipear. No lo usa la biblioteca para nada del disco: entra
+   * solo para saber **de qué tabla** sacar el récord de la canción elegida. El
+   * récord de flechas y el de palabras son de partidas distintas.
+   */
+  sequenceType: SequenceType
+  language: Language
 }
 
-export function SongLibrary({ selected, onSelect }: Props) {
+export function SongLibrary({ selected, onSelect, sequenceType, language }: Props) {
   const [songs, setSongs] = useState<SongStatus[]>([])
   const [url, setUrl] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
@@ -151,6 +160,10 @@ export function SongLibrary({ selected, onSelect }: Props) {
         )}
       </div>
 
+      {selected !== null && (
+        <BestScore song={selected} sequenceType={sequenceType} language={language} />
+      )}
+
       {selected !== null && editing === selected.id && selected.bpm !== null && (
         <BpmEditor
           // La `key` incluye el tempo guardado a propósito: al volver al
@@ -194,6 +207,62 @@ export function SongLibrary({ selected, onSelect }: Props) {
         </div>
       </Modal>
     </div>
+  )
+}
+
+/**
+ * Récord de la canción elegida, en la configuración con la que se va a jugar.
+ *
+ * **No se guarda en `library.json`.** Sale del ranking, que es donde ya viven
+ * los puntajes: un campo nuevo en el índice habría que versionarlo y podría
+ * desincronizarse del archivo que de verdad manda. Es el mismo criterio con el
+ * que `lastScoreName` deduce el nombre en vez de guardarlo aparte.
+ */
+function BestScore({
+  song,
+  sequenceType,
+  language,
+}: {
+  song: SongStatus
+  sequenceType: SequenceType
+  language: Language
+}) {
+  const [best, setBest] = useState<ScoreEntry | null>(null)
+
+  // La velocidad no entra: con una canción de la biblioteca el tempo sale de la
+  // canción, así que `modeKey` ignora el preset.
+  const mode = modeKey({
+    sequenceType,
+    language,
+    rhythmMode: 'song',
+    speed: 'normal',
+    songId: song.id,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    loadScores(mode).then(
+      (board) => !cancelled && setBest(bestOf(board)),
+      // Un ranking ilegible no puede tapar la biblioteca: sin récord se juega
+      // igual. El detalle del fallo ya va al log del backend.
+      () => !cancelled && setBest(null),
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [mode])
+
+  return (
+    <p className="text-[12px] text-ink-muted">
+      {best === null ? (
+        <>Sin puntajes en esta canción todavía. Estrenala.</>
+      ) : (
+        <>
+          Récord <b className="font-display text-cyan">{best.score}</b> · {best.name} · combo x
+          {best.maxCombo}
+        </>
+      )}
+    </p>
   )
 }
 
