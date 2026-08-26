@@ -28,6 +28,8 @@ type Props = {
   song: SongStatus | null
   /** Visualizador circular que reacciona a lo que suena. */
   reactiveBackground: boolean
+  /** Calibración de latencia. Va al motor, que la aplica al juzgar la tecla. */
+  offsetMs: number
   onMenu: () => void
 }
 
@@ -41,6 +43,7 @@ export function GameCanvas({
   speed,
   song,
   reactiveBackground,
+  offsetMs,
   onMenu,
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -129,6 +132,7 @@ export function GameCanvas({
           durationMs: rhythm.totalDurationMs,
           // El motor no arranca ninguna ronda hasta que termine la cuenta.
           startsAtMs: nowMs() + COUNTDOWN_SECONDS * 1000,
+          offsetMs,
         },
         bpm,
         rhythm,
@@ -179,7 +183,7 @@ export function GameCanvas({
       pausedRef.current = false
       void resumeAudio()
     }
-  }, [sequenceType, language, rhythmMode, speed, song, reactiveBackground, run])
+  }, [sequenceType, language, rhythmMode, speed, song, reactiveBackground, offsetMs, run])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

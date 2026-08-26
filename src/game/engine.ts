@@ -125,6 +125,24 @@ export type GameConfig = {
    * la grilla del beat.
    */
   interRoundPauseMs: number
+  /**
+   * Calibración de latencia, en milisegundos. Se le **resta** al instante de la
+   * confirmación antes de juzgarla.
+   *
+   * Entre que el reloj de audio agenda un sonido y la onda sale del parlante
+   * pasa un rato —el buffer de la placa, y con Bluetooth cientos de ms—, y algo
+   * parecido pasa entre que se dibuja un frame y se ve. El jugador reacciona a
+   * lo que percibe, así que confirma tarde de forma sistemática. Positivo es el
+   * caso normal: presiona después, se le corre la confirmación hacia atrás.
+   *
+   * Es un número solo a propósito. Absorbe latencia de audio, de pantalla y de
+   * teclado en una sola perilla, que es lo que hace todo el género: separarlas
+   * pediría medir cada una y ninguna se puede medir por separado desde aquí.
+   *
+   * **No mueve el reloj**, solo el juicio de la tecla. Si corriera el reloj, la
+   * barra terminaría en otro lugar que donde se la ve.
+   */
+  offsetMs: number
 }
 
 export type GameState = {
@@ -391,10 +409,17 @@ export function pressSpace(
     return { state: resolve(state, 'miss', nowMs, { reason: 'incomplete' }), judgement: 'miss' }
   }
 
-  const progress = progressAt(state, nowMs)
+  // La calibración entra acá y en ningún otro lado: es el único instante que
+  // lo pone el jugador, y por lo tanto el único que llega con latencia adentro.
+  const judgedAtMs = nowMs - state.config.offsetMs
+  const progress = progressAt(state, judgedAtMs)
   const judgement = judge(progress)
 
   return {
+    // `resolve` recibe el instante REAL, no el corregido: de ahí sale la pausa
+    // entre rondas, que se cuenta desde que el jugador tocó la tecla. Con el
+    // corregido, cada ronda arrancaría desplazada por el ajuste y con un
+    // beatmap eso se sale de la grilla del beat.
     state: resolve(state, judgement, nowMs, {
       reason: judgement === 'miss' ? 'window' : undefined,
       progress,

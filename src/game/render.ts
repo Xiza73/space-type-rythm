@@ -436,14 +436,24 @@ function drawRail(
 
   // El medidor de dificultad va pegado al riel, en el recorrido natural de la
   // vista entre las casillas y el marcador.
-  if (state.config.durationMs !== null) {
+  //
+  // Sin secuencia no se dibuja: no hay dificultad que mostrar. Es el caso de la
+  // pantalla de calibración, donde solo se confirma en la zona y encender el
+  // primer escalón haría creer que hay un nivel corriendo.
+  if (state.config.durationMs !== null && state.sequence.length > 0) {
     drawDifficultyMeter(ctx, state.sequence.length, w, rail.y - 14)
   }
 
   ctx.textAlign = 'center'
   ctx.font = `700 12px ${FONTS.ui}`
   ctx.fillStyle = COLORS.inkMuted
-  ctx.fillText('SECUENCIA  →  ESPACIO O ENTER EN LA ZONA CLARA', w / 2, rail.y + rail.height + 28)
+  ctx.fillText(
+    state.sequence.length > 0
+      ? 'SECUENCIA  →  ESPACIO O ENTER EN LA ZONA CLARA'
+      : 'ESPACIO O ENTER EN LA ZONA CLARA',
+    w / 2,
+    rail.y + rail.height + 28,
+  )
 }
 
 const METER_BAR_W = 9

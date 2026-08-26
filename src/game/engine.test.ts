@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PROGRESSION, ROUND, SCORING, TIMING } from './constants'
+import { CALIBRATION, PROGRESSION, ROUND, SCORING, TIMING } from './constants'
 import {
   abortRound,
   armSequence,
@@ -35,8 +35,18 @@ const AT_PERFECT = 0.84
 /** Progreso dentro de GOOD pero fuera de PERFECT. */
 const AT_GOOD = 0.75
 
-function newGame(lives: number | null = 3, durationMs: number | null = null): GameState {
-  return createGame({ lives, durationMs, interRoundPauseMs: ROUND.interRoundPauseMs, startsAtMs: 0 })
+function newGame(
+  lives: number | null = 3,
+  durationMs: number | null = null,
+  offsetMs = 0,
+): GameState {
+  return createGame({
+    lives,
+    durationMs,
+    interRoundPauseMs: ROUND.interRoundPauseMs,
+    startsAtMs: 0,
+    offsetMs,
+  })
 }
 
 /** Envoltorio con la firma anterior: arma la secuencia y la enciende de una. */
@@ -368,6 +378,7 @@ describe('la cuenta regresiva retiene el arranque', () => {
       durationMs: null,
       interRoundPauseMs: ROUND.interRoundPauseMs,
       startsAtMs: 5_000,
+      offsetMs: 0,
     })
 
     // La música ya suena; lo que espera es el juego.
@@ -401,7 +412,13 @@ describe('descartar la ronda en curso', () => {
 describe('pausa entre rondas', () => {
   it('la pone la configuración, no una constante del motor', () => {
     // Con un beatmap la pausa es cero: el hueco lo da la grilla del beat.
-    const sinPausa = createGame({ lives: null, durationMs: 60_000, interRoundPauseMs: 0, startsAtMs: 0 })
+    const sinPausa = createGame({
+      lives: null,
+      durationMs: 60_000,
+      interRoundPauseMs: 0,
+      startsAtMs: 0,
+      offsetMs: 0,
+    })
     const started = begin(sinPausa, SEQ, DUR, 0)
     const resolved = pressSpace(typeAll(started), AT_PERFECT * DUR).state
 
@@ -566,6 +583,68 @@ describe('medición para calibrar', () => {
     const state = tick(typeAll(begin(newGame(), SEQ, DUR, 0)), DUR)
 
     expect(meanOffsetMs(state.stats)).toBeNull()
+  })
+})
+
+describe('calibración de latencia', () => {
+  /** Instante del centro exacto de PERFECT, en ms de ronda. */
+  const CENTRO = PERFECT_CENTER * DUR
+  /** 240ms tarde: cae en GREAT, no en PERFECT. */
+  const TARDE = CENTRO + 240
+
+  it('sin ajuste, presionar tarde no llega a PERFECT', () => {
+    const { judgement } = pressSpace(typeAll(begin(newGame(), SEQ, DUR, 0)), TARDE)
+
+    expect(judgement).toBe('great')
+  })
+
+  it('el ajuste corre la confirmación hacia atrás y la centra', () => {
+    // El caso real: los parlantes van 240ms atrasados, así que el jugador
+    // escucha tarde y confirma tarde. El ajuste se lo devuelve al centro.
+    const { judgement } = pressSpace(typeAll(begin(newGame(3, null, 240), SEQ, DUR, 0)), TARDE)
+
+    expect(judgement).toBe('perfect')
+  })
+
+  it('un ajuste negativo corrige al que se adelanta', () => {
+    const temprano = CENTRO - 240
+    const { judgement } = pressSpace(typeAll(begin(newGame(3, null, -240), SEQ, DUR, 0)), temprano)
+
+    expect(judgement).toBe('perfect')
+  })
+
+  it('no toca el vencimiento de la ronda', () => {
+    // El ajuste corrige **la confirmación del jugador**, no el reloj. Si
+    // corriera también el vencimiento, la barra terminaría en otro lado que
+    // donde se la ve, y ver una cosa y jugar otra es peor que no calibrar.
+    const state = tick(typeAll(begin(newGame(3, null, 240), SEQ, DUR, 0)), DUR)
+
+    expect(state.stats.missTimeout).toBe(1)
+  })
+
+  it('el desvío que se reporta ya viene corregido', () => {
+    // Es lo que hace verificable la calibración: si quedó bien puesta, el
+    // número que muestra la pantalla de resultados tiene que dar cerca de cero.
+    const state = pressSpace(typeAll(begin(newGame(3, null, 240), SEQ, DUR, 0)), TARDE).state
+
+    expect(meanOffsetMs(state.stats)).toBeCloseTo(0)
+  })
+
+  it('la medición puede llegar al mínimo de muestras', () => {
+    // La primera pasada es de anticipo y no se mide, así que el techo real es
+    // una menos que las pasadas. Con el mínimo por encima de ese techo, la
+    // pantalla no podría dar un resultado nunca: solo sabría decir que no
+    // alcanzó, y sin ninguna pista de que el problema es la configuración.
+    expect(CALIBRATION.minSamples).toBeLessThanOrEqual(CALIBRATION.rounds - 1)
+  })
+
+  it('la pausa entre rondas se mide desde el momento real de la tecla', () => {
+    // Si la pausa saliera del tiempo corregido, la ronda siguiente arrancaría
+    // desplazada por el ajuste y con un beatmap eso se sale de la grilla.
+    const sinAjuste = pressSpace(typeAll(begin(newGame(), SEQ, DUR, 0)), TARDE).state
+    const conAjuste = pressSpace(typeAll(begin(newGame(3, null, 240), SEQ, DUR, 0)), TARDE).state
+
+    expect(conAjuste.resumeAtMs).toBe(sinAjuste.resumeAtMs)
   })
 })
 
