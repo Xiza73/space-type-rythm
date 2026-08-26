@@ -169,7 +169,14 @@ export function App() {
           )}
         </div>
 
-        {rhythmMode === 'song' && <SongLibrary selected={song} onSelect={setSong} />}
+        {rhythmMode === 'song' && (
+          <SongLibrary
+            selected={song}
+            onSelect={setSong}
+            sequenceType={sequenceType}
+            language={language}
+          />
+        )}
 
           </div>
         </div>
@@ -209,7 +216,9 @@ export function App() {
 
         <Ranking
           heading={false}
-          mode={modeKey(sequenceType, language, rhythmMode, speed)}
+          // `songId` va siempre: con arcade la clave lo ignora, así que no hace
+          // falta anularlo aquí y no queda una segunda regla que mantener.
+          mode={modeKey({ sequenceType, language, rhythmMode, speed, songId: song?.id ?? null })}
           emptyHint="Nadie puntuó todavía en esta configuración. Estrenala."
         />
       </Modal>

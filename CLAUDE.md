@@ -165,7 +165,7 @@ Procesar es una operación de **una sola vez**: si la URL ya está en la bibliot
 
 ```
 <app_data_dir>/
-├── library.json           # índice: id, título, duración, bpm, url, fechas, mejor score
+├── library.json           # índice: id, título, duración, bpm, url, fechas
 └── songs/<id>/
     ├── audio.<ext>        # audio descargado por yt-dlp
     ├── beatmap.json       # onsets, bpm, secuencias generadas

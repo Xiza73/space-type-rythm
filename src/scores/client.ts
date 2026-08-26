@@ -16,21 +16,46 @@ export type ScoreEntry = {
 
 export type NewScore = Omit<ScoreEntry, 'at'>
 
+/** Todo lo que cambia la dificultad de una partida, o sea todo lo que separa una tabla de otra. */
+export type ModeChoice = {
+  sequenceType: SequenceType
+  language: Language
+  rhythmMode: RhythmMode
+  speed: SpeedId
+  /** Canción de la biblioteca, o `null` con el chiptune simulado. */
+  songId: string | null
+}
+
 /**
  * Clave de la tabla. Cada configuración tiene la suya porque **los puntajes de
  * modos distintos no se comparan**: arcade es infinito y canción dura dos
  * minutos, así que un top 5 mezclado lo ganaría siempre arcade.
  *
  * El idioma entra en la clave: tipear en español y en inglés no cuesta igual.
+ *
+ * **Cada canción de la biblioteca tiene su propia tabla.** Por el mismo motivo
+ * que las tienen los modos: duran distinto y van a otro tempo, así que un top 5
+ * compartido lo gana siempre la canción más larga, que es la que más rondas
+ * deja jugar. Antes la canción no entraba en la clave y todas caían en la del
+ * chiptune del preset que hubiera quedado seleccionado en el menú — un preset
+ * que con una canción real ni siquiera se muestra.
+ *
+ * El tempo corregido a mano **no** entra: es un arreglo de la detección, no una
+ * palanca de dificultad. Si entrara, cada ajuste estrenaría una tabla vacía y
+ * el récord anterior desaparecería de la vista.
  */
-export function modeKey(
-  sequenceType: SequenceType,
-  language: Language,
-  rhythmMode: RhythmMode,
-  speed: SpeedId,
-): string {
+export function modeKey({
+  sequenceType,
+  language,
+  rhythmMode,
+  speed,
+  songId,
+}: ModeChoice): string {
   const seq = sequenceType === 'arrows' ? 'arrows' : `words-${language}`
-  return rhythmMode === 'arcade' ? `${seq}/arcade` : `${seq}/song-${speed}`
+  if (rhythmMode === 'arcade') return `${seq}/arcade`
+  // Separador distinto al del preset: un id de video no puede colisionar con
+  // `song-calma` ni con ninguno de los otros cuatro.
+  return songId === null ? `${seq}/song-${speed}` : `${seq}/song:${songId}`
 }
 
 export function loadScores(mode: string): Promise<ScoreEntry[]> {
@@ -56,6 +81,17 @@ export function newEntryAt(
 ): number | null {
   const previas = new Set(before.map((entry) => entry.at))
   return after.find((entry) => !previas.has(entry.at))?.at ?? null
+}
+
+/**
+ * Mejor entrada de una tabla, o `null` si nadie puntuó todavía.
+ *
+ * Es la primera: el backend devuelve el top ya ordenado de mayor a menor, y
+ * volver a ordenarlo aquí sería una segunda definición de "mejor" que puede
+ * desincronizarse de la de `top_of`.
+ */
+export function bestOf(board: readonly ScoreEntry[]): ScoreEntry | null {
+  return board[0] ?? null
 }
 
 /**

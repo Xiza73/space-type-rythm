@@ -102,7 +102,7 @@ Todo vive en el directorio de datos de la app — en Windows,
 `%APPDATA%\com.xiza73.spacextype\`:
 
 ```
-library.json           índice: id, título, duración, bpm, mejor puntaje
+library.json           índice: id, título, duración, url, bpm detectado y corregido
 songs/<id>/
 ├── audio.<ext>        el audio descargado
 └── beatmap.json       onsets, bpm, secuencias
