@@ -144,6 +144,35 @@ export const ROUND = {
 export const COUNTDOWN_SECONDS = 3
 
 /**
+ * Medición de la calibración de latencia.
+ *
+ * Se mide **contra la barra y no contra un metrónomo**, y esa es la decisión
+ * que define la pantalla: el jugador apunta a la zona dorada, que es visual, en
+ * los seis modos. Un click de audio mediría la latencia del parlante, que es
+ * solo una parte, y encima la que menos manda cuando lo que se sigue es la
+ * barra. Midiendo con el mismo riel se recoge todo junto —salida de audio,
+ * pantalla, teclado y la costumbre del jugador—, que es exactamente el número
+ * que después se aplica.
+ *
+ * Sin secuencia que tipear: es lo único que la separa de una ronda normal, y es
+ * el motivo de existir de esta pantalla. El desvío que se mide jugando incluye
+ * cuánto tardaste en terminar de tipear, que no es latencia.
+ */
+export const CALIBRATION = {
+  roundDurationMs: 2000,
+  interRoundPauseMs: 500,
+  /** Cuántas pasadas dura la medición. */
+  rounds: 10,
+  /**
+   * Menos muestras que esto no se promedian.
+   *
+   * Un promedio de dos teclas es ruido con forma de número, y aplicarlo a ciegas
+   * descalibra a quien ya estaba bien. Es preferible decir "no alcanzó".
+   */
+  minSamples: 5,
+} as const
+
+/**
  * Cuánto se tolera arrancar una ronda tarde respecto de su compás.
  *
  * El compás que devuelve el ritmo es el último **ya cumplido**, así que casi

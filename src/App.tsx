@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { resumeAudio } from './audio/context'
 import { Calibration } from './components/Calibration'
+import { CalibrationRun } from './components/CalibrationRun'
 import { GameCanvas, type RhythmMode, type SpeedId } from './components/GameCanvas'
 import { Overlays } from './components/Overlays'
 import { Modal } from './components/Modal'
@@ -51,6 +52,7 @@ export function App() {
   const [background, setBackground] = useState<BackgroundId>('visual')
   const [showRanking, setShowRanking] = useState(false)
   const [showCalibration, setShowCalibration] = useState(false)
+  const [measuring, setMeasuring] = useState(false)
   // `null` = todavía no se leyó el disco. El menú no se dibuja hasta tenerlos:
   // si la partida arrancara antes y los ajustes llegaran después, el cambio
   // remontaría el canvas con el juego ya empezado.
@@ -98,6 +100,18 @@ export function App() {
   // Un parpadeo de una lectura de disco. Dibujar el menú antes obligaría a
   // manejar "todavía no sé cuánto vale el ajuste" en cada lugar que lo usa.
   if (settings === null) return null
+
+  if (measuring) {
+    return (
+      <CalibrationRun
+        onApply={(offsetMs) => {
+          void changeOffset(offsetMs)
+          setMeasuring(false)
+        }}
+        onCancel={() => setMeasuring(false)}
+      />
+    )
+  }
 
   if (started) {
     return (
@@ -277,7 +291,14 @@ export function App() {
         title="CALIBRACIÓN"
         onClose={() => setShowCalibration(false)}
       >
-        <Calibration settings={settings} onChange={(ms) => void changeOffset(ms)} />
+        <Calibration
+          settings={settings}
+          onChange={(ms) => void changeOffset(ms)}
+          onMeasure={() => {
+            setShowCalibration(false)
+            setMeasuring(true)
+          }}
+        />
       </Modal>
 
       <Overlays />

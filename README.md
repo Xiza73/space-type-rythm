@@ -74,6 +74,23 @@ tiempo perdido, que ya alcanza. Confirmar con la secuencia incompleta sí es `MI
 Después de un fallo la siguiente ronda se muestra **en anticipo** —al 35% de opacidad, sin
 aceptar input— para que machacar espacio no te coma las tres vidas de un saque.
 
+### Calibración
+
+Entre que el juego agenda un sonido y sale del parlante pasa un rato —con Bluetooth, cientos de
+milisegundos—, y algo parecido pasa entre que se dibuja un frame y lo ves. Como reaccionás a lo
+que percibís, confirmás tarde **siempre**.
+
+**CALIBRAR** en el menú lo mide: diez pasadas de la barra, sin nada que tipear, solo confirmar en
+la zona. El promedio queda guardado y se le resta a cada confirmación antes de juzgarla.
+
+Se mide contra la barra y no contra un metrónomo, a propósito: la zona dorada es visual y es lo
+que apuntás en los seis modos, así que el número tiene que incluir la pantalla y el teclado, no
+solo el audio. Y va sin secuencia porque el desvío que se mide jugando incluye lo que tardaste en
+terminar de escribir, que no es latencia.
+
+> El ajuste **no mueve el reloj**, solo el juicio de la tecla. Si moviera el reloj, la barra
+> terminaría en otro lugar que donde se la ve.
+
 ### Ventanas de timing
 
 El riel se pinta con un degradado que va de casi blanco en el centro a transparente en los

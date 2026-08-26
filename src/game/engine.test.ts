@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PROGRESSION, ROUND, SCORING, TIMING } from './constants'
+import { CALIBRATION, PROGRESSION, ROUND, SCORING, TIMING } from './constants'
 import {
   abortRound,
   armSequence,
@@ -628,6 +628,14 @@ describe('calibración de latencia', () => {
     const state = pressSpace(typeAll(begin(newGame(3, null, 240), SEQ, DUR, 0)), TARDE).state
 
     expect(meanOffsetMs(state.stats)).toBeCloseTo(0)
+  })
+
+  it('la medición puede llegar al mínimo de muestras', () => {
+    // La primera pasada es de anticipo y no se mide, así que el techo real es
+    // una menos que las pasadas. Con el mínimo por encima de ese techo, la
+    // pantalla no podría dar un resultado nunca: solo sabría decir que no
+    // alcanzó, y sin ninguna pista de que el problema es la configuración.
+    expect(CALIBRATION.minSamples).toBeLessThanOrEqual(CALIBRATION.rounds - 1)
   })
 
   it('la pausa entre rondas se mide desde el momento real de la tecla', () => {

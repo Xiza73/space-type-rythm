@@ -3,6 +3,8 @@ import { MAX_OFFSET_MS, OFFSET_STEP_MS, type Settings } from '../settings/client
 type Props = {
   settings: Settings
   onChange: (offsetMs: number) => void
+  /** Abre la medición, que es el camino recomendado. */
+  onMeasure: () => void
 }
 
 /**
@@ -16,7 +18,7 @@ type Props = {
  * El número que hay que poner acá lo dice la pantalla de resultados: si termina
  * diciendo "+40ms, presionas DESPUÉS", el ajuste es 40.
  */
-export function Calibration({ settings, onChange }: Props) {
+export function Calibration({ settings, onChange, onMeasure }: Props) {
   const { offsetMs } = settings
   const move = (delta: number) =>
     onChange(Math.max(-MAX_OFFSET_MS, Math.min(MAX_OFFSET_MS, offsetMs + delta)))
@@ -28,6 +30,23 @@ export function Calibration({ settings, onChange }: Props) {
         Bluetooth son cientos de milisegundos. Como reaccionás a lo que percibís, confirmás
         tarde <b className="text-ink">siempre</b>, y el juego te lo cobra.
       </p>
+
+      <button
+        onClick={onMeasure}
+        className="cursor-pointer rounded-xl bg-linear-to-b from-magenta-light to-magenta-dark px-8 py-3 font-display text-lg text-white"
+      >
+        MEDIRLO
+      </button>
+
+      <p className="text-[12px] leading-relaxed text-ink-muted">
+        Diez pasadas de la barra, sin nada que tipear: solo confirmás en la zona. Sacar la
+        secuencia es lo que hace que el número sirva — jugando, lo que tardás en terminar de
+        escribir entra al promedio como si fuera latencia, y no lo es.
+      </p>
+
+      <div className="h-px bg-line-card" />
+
+      <span className="text-[11px] font-bold tracking-[3px] text-ink-muted">A MANO</span>
 
       <div className="flex items-center justify-center gap-3">
         <button
@@ -66,16 +85,13 @@ export function Calibration({ settings, onChange }: Props) {
       */}
       <p className="text-[12px] leading-relaxed text-ink-muted">
         {offsetMs === 0 ? (
-          <>
-            Sin ajuste. Jugá una partida y mirá el <b>desvío medio</b> del resultado: ese es el
-            número que va acá.
-          </>
+          <>Sin ajuste. Nada cambia respecto de cómo venías jugando.</>
         ) : (
           <>
-            Jugá y mirá el <b>desvío medio</b> del resultado: viene ya corregido por estos{' '}
-            {offsetMs > 0 ? '+' : ''}
-            {offsetMs}ms, así que <b className="text-ink">sumáselo</b> a lo que hay acá. Si te da
-            cerca de cero, quedó calibrado.
+            El <b>desvío medio</b> que muestra el resultado de una partida viene{' '}
+            <b className="text-ink">ya corregido</b> por estos {offsetMs > 0 ? '+' : ''}
+            {offsetMs}ms, así que para afinar hay que <b className="text-ink">sumárselo</b> a este
+            valor, no reemplazarlo. Si te da cerca de cero, quedó bien.
           </>
         )}
       </p>
