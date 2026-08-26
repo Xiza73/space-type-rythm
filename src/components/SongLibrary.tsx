@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { BPM_LIMITS, measureDurationMs } from '../game/constants'
+import { nowMs, resumeAudio } from '../audio/context'
+import { loadSong, playSong, type SongPlayback } from '../audio/song'
+import { addTap, MIN_TAP_INTERVALS, tapBpm } from '../library/tap-tempo'
+import { BPM_LIMITS, measureDurationMs, PREVIEW_START_RATIO } from '../game/constants'
 import type { Language, SequenceType } from '../game/sequence'
 import { Modal } from './Modal'
 import { SongPicker } from './SongPicker'
@@ -36,6 +39,59 @@ export function SongLibrary({ selected, onSelect, sequenceType, language }: Prop
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // Id de la canción que está sonando, o `null`. El objeto de reproducción vive
+  // en una ref: cambiarlo no tiene que redibujar nada.
+  const [playing, setPlaying] = useState<string | null>(null)
+  const [loadingAudio, setLoadingAudio] = useState(false)
+  const playbackRef = useRef<SongPlayback | null>(null)
+  // El buffer decodificado se guarda para no volver a traer megabytes por IPC
+  // cada vez que se para y se vuelve a escuchar la misma canción.
+  const bufferRef = useRef<{ id: string; buffer: AudioBuffer } | null>(null)
+
+  function stopPreview() {
+    playbackRef.current?.stop()
+    playbackRef.current = null
+    setPlaying(null)
+  }
+
+  // Salir del menú sin cortar el audio dejaría la canción sonando encima de la
+  // partida, con dos fuentes por el mismo nodo de música.
+  useEffect(() => stopPreview, [])
+
+  // Cambiar de canción corta la que sonaba: escuchar una mientras se está por
+  // jugar otra es exactamente el tipo de cosa que hace dudar de qué se eligió.
+  useEffect(() => {
+    playbackRef.current?.stop()
+    playbackRef.current = null
+    setPlaying(null)
+  }, [selected?.id])
+
+  async function togglePreview(song: SongStatus) {
+    if (playing === song.id) {
+      stopPreview()
+      return
+    }
+    stopPreview()
+    setLoadingAudio(true)
+    setError(null)
+    try {
+      // El gesto que habilita el audio: en el menú el contexto puede no haberse
+      // resumido nunca, y suspendido no suena nada ni avanza `currentTime`.
+      await resumeAudio()
+      if (bufferRef.current?.id !== song.id) {
+        bufferRef.current = { id: song.id, buffer: await loadSong(song.id) }
+      }
+      playbackRef.current = playSong(
+        bufferRef.current.buffer,
+        bufferRef.current.buffer.duration * PREVIEW_START_RATIO,
+      )
+      setPlaying(song.id)
+    } catch (e: unknown) {
+      setError(String(e))
+    } finally {
+      setLoadingAudio(false)
+    }
+  }
 
   // Carga inicial: llama al cliente directamente y no a `refresh`, que depende
   // de la selección y arrastraría media función a las dependencias del efecto.
@@ -139,6 +195,22 @@ export function SongLibrary({ selected, onSelect, sequenceType, language }: Prop
         */}
         {selected !== null && (
           <>
+            {/*
+              Escuchar antes de jugar. Arranca a un tercio de la canción, que es
+              donde ya hay ritmo: desde el segundo cero se escucharía la intro,
+              que muchas veces no tiene nada que oír.
+            */}
+            <button
+              onClick={() => void togglePreview(selected)}
+              disabled={loadingAudio || !selected.intact}
+              aria-label={
+                playing === selected.id ? `Parar ${selected.title}` : `Escuchar ${selected.title}`
+              }
+              className="shrink-0 cursor-pointer rounded-lg border-2 border-line px-3 py-2.5 text-[13px] text-ink-muted hover:border-cyan hover:text-cyan disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {loadingAudio ? '…' : playing === selected.id ? '■' : '▶'}
+            </button>
+
             {selected.bpm !== null && (
               <button
                 onClick={() => setEditing(editing === selected.id ? null : selected.id)}
@@ -282,6 +354,15 @@ function BpmEditor({
   const detected = song.bpm ?? 120
   const [min, max] = song.bpmRange ?? [BPM_LIMITS.min, BPM_LIMITS.max]
   const [value, setValue] = useState(String(Math.round(song.bpmOverride ?? detected)))
+  const [taps, setTaps] = useState<number[]>([])
+
+  // El reloj de los golpes es el de audio, igual que todo lo demás. Suspendido
+  // no avanza, así que hay que despertarlo antes del primer golpe y no durante.
+  useEffect(() => {
+    void resumeAudio()
+  }, [])
+
+  const tapped = tapBpm(taps)
 
   const parsed = Number(value)
   // Se mide contra los límites **duros**, no contra el sugerido. El sugerido
@@ -340,6 +421,56 @@ function BpmEditor({
       >
         GUARDAR
       </button>
+
+      {/*
+        Tapear el tempo. Va acá y no en una pantalla aparte porque es la misma
+        tarea que ÷2 y ×2: corregir lo que el detector no pudo. La diferencia es
+        que ÷2 y ×2 sirven cuando el error es de octava, y esto sirve siempre.
+
+        Se puede golpear con el mouse o, con el botón enfocado, con ESPACIO o
+        ENTER — que es como se tapea de verdad, con una mano libre.
+      */}
+      <div className="flex basis-full flex-wrap items-center gap-2 border-t border-line-card pt-2">
+        <button
+          onClick={() => setTaps((previos) => addTap(previos, nowMs()))}
+          className="cursor-pointer rounded border-2 border-line px-4 py-1 font-bold text-ink-muted hover:border-magenta hover:text-magenta"
+        >
+          TAP
+        </button>
+
+        <span className="text-ink-muted">
+          {taps.length === 0 ? (
+            <>Poné a sonar la canción con ▶ y golpeá al ritmo.</>
+          ) : tapped === null ? (
+            <>
+              {taps.length} {taps.length === 1 ? 'golpe' : 'golpes'} — seguí, hacen falta{' '}
+              {MIN_TAP_INTERVALS + 1}
+            </>
+          ) : (
+            <>
+              <b className="text-magenta">{Math.round(tapped)}</b> BPM sobre {taps.length} golpes
+            </>
+          )}
+        </span>
+
+        {tapped !== null && (
+          <button
+            onClick={() => setValue(String(Math.round(tapped)))}
+            className="cursor-pointer rounded bg-magenta/20 px-3 py-1 font-bold text-magenta"
+          >
+            USAR
+          </button>
+        )}
+
+        {taps.length > 0 && (
+          <button
+            onClick={() => setTaps([])}
+            className="cursor-pointer rounded px-2 py-1 text-ink-muted hover:text-ink"
+          >
+            Reiniciar
+          </button>
+        )}
+      </div>
 
       {song.bpmOverride !== null && (
         <button
