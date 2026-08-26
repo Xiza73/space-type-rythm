@@ -5,6 +5,8 @@ type Props = {
   onChange: (offsetMs: number) => void
   /** Abre la medición, que es el camino recomendado. */
   onMeasure: () => void
+  /** Por qué no se pudo guardar. Sin esto, el control no responde y no explica nada. */
+  error?: string | null
 }
 
 /**
@@ -18,7 +20,7 @@ type Props = {
  * El número que hay que poner acá lo dice la pantalla de resultados: si termina
  * diciendo "+40ms, presionas DESPUÉS", el ajuste es 40.
  */
-export function Calibration({ settings, onChange, onMeasure }: Props) {
+export function Calibration({ settings, onChange, onMeasure, error = null }: Props) {
   const { offsetMs } = settings
   const move = (delta: number) =>
     onChange(Math.max(-MAX_OFFSET_MS, Math.min(MAX_OFFSET_MS, offsetMs + delta)))
@@ -95,6 +97,8 @@ export function Calibration({ settings, onChange, onMeasure }: Props) {
           </>
         )}
       </p>
+
+      {error !== null && <p className="text-[13px] text-red">No se pudo guardar: {error}</p>}
 
       <div className="flex justify-end">
         <button
