@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 
 import { resumeAudio } from './audio/context'
+import { Calibration } from './components/Calibration'
+import { CalibrationRun } from './components/CalibrationRun'
 import { GameCanvas, type RhythmMode, type SpeedId } from './components/GameCanvas'
 import { Overlays } from './components/Overlays'
 import { Modal } from './components/Modal'
@@ -11,6 +13,7 @@ import { DEFAULTS, SPEED_PRESETS } from './game/constants'
 import type { Language, SequenceType } from './game/sequence'
 import type { SongStatus } from './library/client'
 import { modeKey } from './scores/client'
+import { loadSettings, saveSettings, type Settings } from './settings/client'
 import { isPlainKey } from './window'
 
 const SEQUENCE_OPTIONS = [
@@ -48,6 +51,29 @@ export function App() {
   const [song, setSong] = useState<SongStatus | null>(null)
   const [background, setBackground] = useState<BackgroundId>('visual')
   const [showRanking, setShowRanking] = useState(false)
+  const [showCalibration, setShowCalibration] = useState(false)
+  const [measuring, setMeasuring] = useState(false)
+  // `null` = todavía no se leyó el disco. El menú no se dibuja hasta tenerlos:
+  // si la partida arrancara antes y los ajustes llegaran después, el cambio
+  // remontaría el canvas con el juego ya empezado.
+  const [settings, setSettings] = useState<Settings | null>(null)
+
+  useEffect(() => {
+    // Un fallo cae en los valores por defecto y no bloquea el menú: sin
+    // calibración se juega igual, y el detalle ya quedó en el log del backend.
+    loadSettings().then(setSettings, () => setSettings({ version: 1, offsetMs: 0 }))
+  }, [])
+
+  async function changeOffset(offsetMs: number) {
+    if (settings === null) return
+    // Se muestra lo que devuelve el backend y no lo que se pidió: el ajuste se
+    // recorta allá, que es donde está el rango de verdad.
+    try {
+      setSettings(await saveSettings({ ...settings, offsetMs }))
+    } catch {
+      /* el detalle va al log; el menú no es lugar para un error de disco */
+    }
+  }
 
   useEffect(() => {
     if (started) return
@@ -71,6 +97,22 @@ export function App() {
     setStarted(true)
   }
 
+  // Un parpadeo de una lectura de disco. Dibujar el menú antes obligaría a
+  // manejar "todavía no sé cuánto vale el ajuste" en cada lugar que lo usa.
+  if (settings === null) return null
+
+  if (measuring) {
+    return (
+      <CalibrationRun
+        onApply={(offsetMs) => {
+          void changeOffset(offsetMs)
+          setMeasuring(false)
+        }}
+        onCancel={() => setMeasuring(false)}
+      />
+    )
+  }
+
   if (started) {
     return (
       <GameCanvas
@@ -80,6 +122,7 @@ export function App() {
         speed={speed}
         song={rhythmMode === 'song' ? song : null}
         reactiveBackground={background === 'visual'}
+        offsetMs={settings.offsetMs}
         onMenu={() => setStarted(false)}
       />
     )
@@ -200,6 +243,26 @@ export function App() {
           >
             VER RANKING
           </button>
+
+          {/*
+            El ajuste se pone una vez por equipo y no se vuelve a mirar, así que
+            no compite por lugar con lo que sí se elige antes de cada partida.
+            Que muestre el valor cuando no es cero es lo que evita jugar meses
+            con una calibración vieja sin acordarse de que está puesta.
+          */}
+          <button
+            onClick={() => setShowCalibration(true)}
+            className="cursor-pointer rounded-xl border-2 border-line px-6 py-3.5 font-bold text-ink-soft hover:border-ink-muted"
+          >
+            CALIBRAR
+            {settings.offsetMs !== 0 && (
+              <span className="text-cyan">
+                {' '}
+                {settings.offsetMs > 0 ? '+' : ''}
+                {settings.offsetMs}ms
+              </span>
+            )}
+          </button>
         </div>
       </main>
 
@@ -220,6 +283,21 @@ export function App() {
           // falta anularlo aquí y no queda una segunda regla que mantener.
           mode={modeKey({ sequenceType, language, rhythmMode, speed, songId: song?.id ?? null })}
           emptyHint="Nadie puntuó todavía en esta configuración. Estrenala."
+        />
+      </Modal>
+
+      <Modal
+        open={showCalibration}
+        title="CALIBRACIÓN"
+        onClose={() => setShowCalibration(false)}
+      >
+        <Calibration
+          settings={settings}
+          onChange={(ms) => void changeOffset(ms)}
+          onMeasure={() => {
+            setShowCalibration(false)
+            setMeasuring(true)
+          }}
         />
       </Modal>
 
