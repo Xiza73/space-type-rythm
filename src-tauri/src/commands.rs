@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager};
 
 use crate::library::{self, LibraryError, Processed, SongStatus};
 use crate::scores::{self, Entry, ScoreError};
+use crate::settings::{self, Settings};
 
 fn data_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     app.path()
@@ -71,6 +72,26 @@ pub async fn song_audio(app: AppHandle, id: String) -> Result<tauri::ipc::Respon
         .map_err(library_message)?;
 
     Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// El detalle del error va al log; al usuario le llega el mensaje y nada más.
+fn settings_message(error: crate::jsonstore::StoreError) -> String {
+    log::error!("ajustes: {error}");
+    error.to_string()
+}
+
+#[tauri::command]
+pub fn load_settings(app: AppHandle) -> Result<Settings, String> {
+    let dir = data_dir(&app)?;
+    settings::read(&settings::settings_path(&dir)).map_err(settings_message)
+}
+
+/// Devuelve lo que quedó guardado, que puede no ser lo que se pidió: el ajuste
+/// se recorta a un rango válido y la pantalla tiene que mostrar el valor real.
+#[tauri::command]
+pub fn save_settings(app: AppHandle, settings: Settings) -> Result<Settings, String> {
+    let dir = data_dir(&app)?;
+    settings::write(&settings::settings_path(&dir), &settings).map_err(settings_message)
 }
 
 #[derive(Debug, Deserialize)]

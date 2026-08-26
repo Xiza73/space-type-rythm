@@ -2,6 +2,7 @@ mod commands;
 mod jsonstore;
 mod library;
 mod scores;
+mod settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -52,7 +53,9 @@ pub fn run() {
             commands::delete_song,
             commands::song_beatmap,
             commands::song_audio,
-            commands::set_song_bpm
+            commands::set_song_bpm,
+            commands::load_settings,
+            commands::save_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
