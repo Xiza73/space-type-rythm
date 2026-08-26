@@ -81,9 +81,12 @@ export function App() {
       if (event.key !== 'Enter') return
       // ALT+ENTER es el atajo de pantalla completa, no "jugar".
       if (!isPlainKey(event)) return
-      // Con el foco en un campo, ENTER es de ese campo. Si no, arrancaría la
-      // partida al confirmar la URL de la biblioteca.
+      // Con el foco en un campo o en un botón, ENTER es de ese control. Si no,
+      // arrancaría la partida al confirmar la URL de la biblioteca — o, peor,
+      // al usar el botón TAP con el teclado, que es como se lo usa: cada golpe
+      // activaría el botón **y** lanzaría la partida.
       if (event.target instanceof HTMLInputElement) return
+      if (event.target instanceof HTMLButtonElement) return
       void start()
     }
     window.addEventListener('keydown', onKeyDown)

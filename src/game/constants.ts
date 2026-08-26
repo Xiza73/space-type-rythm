@@ -173,6 +173,15 @@ export const CALIBRATION = {
 } as const
 
 /**
+ * Desde qué punto de la canción arranca la escucha previa de la biblioteca.
+ *
+ * No desde el principio: una intro puede ser ambiente, un silencio o una voz
+ * sola, y ahí no hay ritmo que escuchar ni tempo que tapear. A un tercio de la
+ * canción ya entró todo lo que tenía que entrar.
+ */
+export const PREVIEW_START_RATIO = 0.33
+
+/**
  * Cuánto se tolera arrancar una ronda tarde respecto de su compás.
  *
  * El compás que devuelve el ritmo es el último **ya cumplido**, así que casi

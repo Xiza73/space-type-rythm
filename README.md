@@ -125,10 +125,16 @@ songs/<id>/
 └── beatmap.json       onsets, bpm, secuencias
 ```
 
-> **El tempo detectado se puede corregir a mano**, entre 30 y 300 BPM, con botones de `÷2` y
-> `×2`. Hacen falta: la detección automática acierta 10 de 17 en el corpus de prueba, y casi
-> todo lo que falla lo hace por un factor de exactamente 2 — un clic, una sola vez por canción.
-> El detalle de por qué está en [`src-tauri/bench/`](src-tauri/bench/).
+> **El tempo detectado se puede corregir a mano**, entre 30 y 300 BPM. Hacen falta: la detección
+> automática acierta 10 de 17 en el corpus de prueba. El detalle de por qué está en
+> [`src-tauri/bench/`](src-tauri/bench/).
+>
+> Hay tres formas, de menos a más trabajo: `÷2` y `×2` para el error de octava, que es el
+> típico; **TAP**, golpeando al ritmo mientras escuchás la canción con `▶`; o escribir el número.
+>
+> El tap usa la **mediana** de los intervalos y no el promedio, y no es un detalle: el error
+> típico no es temblar, es saltearse un golpe. Ese intervalo sale al doble y el promedio se lo
+> lleva puesto — cinco golpes a 500ms con uno salteado dan 100 BPM en vez de 120.
 
 ## Desarrollo
 
