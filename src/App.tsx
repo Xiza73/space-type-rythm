@@ -57,6 +57,7 @@ export function App() {
   // si la partida arrancara antes y los ajustes llegaran después, el cambio
   // remontaría el canvas con el juego ya empezado.
   const [settings, setSettings] = useState<Settings | null>(null)
+  const [offsetError, setOffsetError] = useState<string | null>(null)
 
   useEffect(() => {
     // Un fallo cae en los valores por defecto y no bloquea el menú: sin
@@ -70,8 +71,13 @@ export function App() {
     // recorta allá, que es donde está el rango de verdad.
     try {
       setSettings(await saveSettings({ ...settings, offsetMs }))
-    } catch {
-      /* el detalle va al log; el menú no es lugar para un error de disco */
+      setOffsetError(null)
+    } catch (e: unknown) {
+      // Antes esto se descartaba en silencio. Al probarlo se vio lo que eso
+      // significa: hacés clic, el número no se mueve, y no hay ni un error en
+      // ningún lado. Un control que no responde y no explica por qué se lee
+      // como un juego roto.
+      setOffsetError(String(e))
     }
   }
 
@@ -110,6 +116,10 @@ export function App() {
         onApply={(offsetMs) => {
           void changeOffset(offsetMs)
           setMeasuring(false)
+          // Se vuelve al panel, no al menú: ahí se ve el número que quedó —o el
+          // error, si el disco falló—. Salir directo dejaría al jugador sin
+          // saber si lo que midió llegó a guardarse.
+          setShowCalibration(true)
         }}
         onCancel={() => setMeasuring(false)}
       />
@@ -296,6 +306,7 @@ export function App() {
       >
         <Calibration
           settings={settings}
+          error={offsetError}
           onChange={(ms) => void changeOffset(ms)}
           onMeasure={() => {
             setShowCalibration(false)

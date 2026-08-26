@@ -115,8 +115,15 @@ export function CalibrationRun({ onApply, onCancel }: Props) {
     <>
       <canvas ref={ref} className="block h-full w-full" />
 
+      {/*
+        El bloque de instrucciones va **debajo** del HUD, no encima. El canvas
+        dibuja SCORE/COMBO/MULT/TIEMPO entre los 30 y los 90 píxeles de altura,
+        así que a `top-8` le caía justo arriba y los dos textos quedaban
+        ilegibles. Se vio al correrlo: en los tests no aparece, porque nadie
+        testea el canvas pixel a pixel y no habría que empezar por esto.
+      */}
       {result === null && (
-        <div className="pointer-events-none fixed inset-x-0 top-8 flex flex-col items-center gap-1 text-center">
+        <div className="pointer-events-none fixed inset-x-0 top-28 flex flex-col items-center gap-1 text-center">
           <p className="text-[11px] font-bold tracking-[6px] text-ink-muted">CALIBRANDO</p>
           <p className="max-w-[520px] px-6 text-[13px] text-ink-soft">
             No hay nada que tipear. Confirmá con <b className="text-gold">ESPACIO</b> cuando el
